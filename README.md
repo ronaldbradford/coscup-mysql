@@ -40,29 +40,44 @@ DBA、後端工程師、SRE，以及對 RAG 有興趣但不確定資料庫選型
 
 ---
 
-## Repo 結構（規劃中）
+## Demo 案例
+
+虛構電商「**綠豆選物 LitoShop**」的 AI 客服：知識庫為合成的繁中電商客服 FAQ
+（43 個知識 chunk / 10 類別 / 173 句改寫評估問句，CC0 授權，無個資與版權疑慮），
+benchmark 可擴增至 10 萬筆。檢索雙後端（MySQL 9.7 / pgvector）一鍵切換。
+
+## Repo 結構
 
 ```
 .
-├── mysql/        # MySQL 9.x 端的 schema、ingestion、query
-├── pgvector/     # PostgreSQL + pgvector 對照組
-├── bench/        # benchmark 腳本與結果（CSV + 圖）
-├── slides/       # 投影片原始檔
-├── docs/         # 文章版說明、決策框架、對照表
-└── docker-compose.yml
+├── docker-compose.yml   # MySQL 9.7 + pgvector 0.8 (+ Ollama, profile: ai)
+├── Makefile             # make help 看所有指令
+├── mysql/init/          # MySQL schema（VECTOR(1024)）
+├── pgvector/init/       # pgvector schema + HNSW 說明
+├── app/                 # ingest / search_mysql / search_pg / chatbot / bench
+├── data/                # faq_seed.json + generate_faq.py（合成知識庫）
+├── bench/               # benchmark 結果（CSV）
+├── slides/              # Marp 投影片原始檔 + HTML/PDF
+└── docs/                # 40 分鐘專題設計、環境建置指南、現場 runbook
 ```
 
-## 快速開始（規劃中）
+## 快速開始
 
 ```bash
-git clone <repo-url>
-cd <repo>
-docker compose up -d
-make ingest
-make bench
+git clone <repo-url> && cd <repo>
+make up        # MySQL 9.7 + pgvector
+make up-ai     # + Ollama（bge-m3 embedding、qwen3:4b LLM）
+make deps      # pip install -r app/requirements.txt
+make dataset   # 產生知識庫
+make ingest    # embedding + 寫入兩座 DB
+make chat      # AI 客服（MySQL 檢索）；make chat-pg 切 pgvector
+make bench-10k # benchmark（另有 bench-100k）
 ```
 
-> 詳細指引將於議程前完成並補上。
+> 沒有 GPU / 不想拉模型？`EMBED_BACKEND=fake` 可用確定性假向量跑通全流程
+> （語意品質為零，但流程與效能特性等價，適合 CI 與快速驗證）。
+>
+> 詳細指引：`docs/environment-setup.md`（VM 建置）、`docs/runbook.md`（演講日操作）。
 
 ---
 

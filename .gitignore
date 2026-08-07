@@ -1,0 +1,11 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+.DS_Store
+_to_delete/
+
+# 產出物（可用 make dataset / make bench-* / marp 重新產生）
+data/*.jsonl
+bench/*.csv
+slides/*.html

@@ -1,0 +1,79 @@
+# COSCUP 2026 · 從零打造一個 MySQL-based RAG 系統
+# 服務：
+#   mysql    — MySQL 9.7 社群版（VECTOR 型別主角）
+#   pg       — PostgreSQL 18 + pgvector 0.8（對照組）
+#   ollama   — 本地 embedding（bge-m3）與 LLM（qwen3:4b），profile: ai
+#   myvector — （選配）MyVector plugin 版 MySQL，展示第三條路，profile: myvector
+#
+# 快速開始：
+#   docker compose up -d                 # 只起兩座資料庫
+#   docker compose --profile ai up -d    # 連同 Ollama 一起起
+
+services:
+  mysql:
+    image: mysql:9.7
+    container_name: rag-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: coscup2026
+      MYSQL_DATABASE: ragdemo
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_0900_ai_ci
+      - --innodb-buffer-pool-size=2G
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./mysql/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-pcoscup2026"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  pg:
+    image: pgvector/pgvector:pg18-bookworm
+    container_name: rag-pg
+    shm_size: 1g          # HNSW 平行建索引需要，預設 64MB 會 DiskFull
+    environment:
+      POSTGRES_PASSWORD: coscup2026
+      POSTGRES_DB: ragdemo
+    ports:
+      - "5432:5432"
+    volumes:
+      # PG 18 image 的 volume 掛載點改為 /var/lib/postgresql（非 …/data）
+      - pg-data:/var/lib/postgresql
+      - ./pgvector/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d ragdemo"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: rag-ollama
+    profiles: ["ai"]
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-data:/root/.ollama
+    # 首次啟動後執行：
+    #   docker exec rag-ollama ollama pull bge-m3     # embedding, 1024 維
+    #   docker exec rag-ollama ollama pull qwen3:4b   # 回答用 LLM（繁中可用）
+
+  # 第三條路（選配）：MyVector = 開源 GPLv2 的 MySQL vector plugin（HNSW ANN）
+  # image 與用法見 https://github.com/askdba/myvector ，示意：
+  # myvector:
+  #   image: ghcr.io/askdba/myvector:mysql9.7
+  #   profiles: ["myvector"]
+  #   environment:
+  #     MYSQL_ROOT_PASSWORD: coscup2026
+  #     MYSQL_DATABASE: ragdemo
+  #   ports:
+  #     - "3307:3306"
+
+volumes:
+  mysql-data:
+  pg-data:
+  ollama-data:
