@@ -13,6 +13,8 @@ style: |
   table { font-size: 22px; }
   section.lead { text-align: center; }
   section.lead h1 { font-size: 54px; }
+  section.lead img { display: block; margin: 18px auto 8px; }
+  section.lead a { color: #00618A; }
   section.demo { background: #0d1117; color: #e6edf3; }
   section.demo h1, section.demo h2 { color: #58a6ff; }
   .warn { color: #c0392b; font-weight: bold; }
@@ -29,6 +31,10 @@ footer: "COSCUP 2026 · MySQL Track · CC BY-SA 4.0"
 
 **Hank（綠豆湯 / litotom）**
 COSCUP 2026 · MySQL Track
+
+![GitHub repo QR code w:180 h:180](data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUoAAAFKAQMAAABB54RGAAAABlBMVEUAYYr///+Db5d/AAABoElEQVR42u2bQY4DMQgE0foBfpK/7ifNAyyxMQZMblkpK/WhfbBmJuSSkpuGIaKfrikMZShD/xT6iK9hV32dr8vYm6/2Cv2RjxdD/yd002rqeB6Re2WMDNkJIS0UWk7maQXU+cBuB2kB0tLlSjhtE9KCPlubzJE+2ciUtIDz1vEddrscI/MWGq3rCW/yio2eEIxWWZatqjpWs88fC0UJZ96P9PJmNS430oJRwoPnCmNPd7jth3SeLaizZXiyHJ5Rb7mNpxJiuYxeU5Z7wiy/6AnBHLylp0MmCix/RgePVx0HKPcbWxjZ1QVVwsNoFBsfPjErL9JCqrdWtpoST9dwGaSFQytASeIR8TZG+A16Qqx6q3kv9zZ002Cw3kJz8Jm3jv7l5gSphEgu41bCEsnL05guYXUMWB27HJaaOIOohGCesKpeOWAasxqkBfd+y89ReMJWJmtIC3HmaaZ5L61dKiFW56nMZaxoNb0DJS28CbXadMrCmLQQaakPp701efnuGDRv6ap47Nm19qSFOPNUevChjvSEiPUW/+LBUIZ+LfQXkMoR1Jkm6O4AAAAASUVORK5CYII=)
+
+**投影片與範例程式碼** · https://github.com/hanktom/coscup-mysql
 
 ---
 
