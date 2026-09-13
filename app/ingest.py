@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""將 data/faq_dataset.jsonl 的知識庫 chunk 產生 embedding 後寫入 MySQL 與 pgvector。
+"""Embed knowledge-base chunks from data/faq_dataset.jsonl and write them to MySQL and pgvector.
 
-用法：
-    python ingest.py               # 寫入兩座資料庫
-    python ingest.py --db mysql    # 只寫 MySQL
-    python ingest.py --db pg       # 只寫 pgvector
+Usage:
+    python ingest.py               # write both databases
+    python ingest.py --db mysql    # MySQL only
+    python ingest.py --db pg       # pgvector only
 """
 import argparse
 import json
@@ -61,8 +61,8 @@ def main():
     args = ap.parse_args()
 
     chunks = load_chunks()
-    print(f"載入 {len(chunks)} 筆知識庫 chunk，開始產生 embedding"
-          f"（backend={config.EMBED_BACKEND}, model={config.EMBED_MODEL}）...")
+    print(f"Loaded {len(chunks)} knowledge-base chunks; embedding"
+          f" (backend={config.EMBED_BACKEND}, model={config.EMBED_MODEL})...")
 
     rows = []
     t0 = time.perf_counter()
@@ -73,13 +73,13 @@ def main():
             rows.append((c["id"], c["category"], c["title"], c["content"],
                          embedder.to_vector_literal(v)))
         print(f"  embedding {min(i + BATCH, len(chunks))}/{len(chunks)}", end="\r")
-    print(f"\nembedding 完成：{len(rows)} 筆，{time.perf_counter() - t0:.1f}s")
+    print(f"\nembeddings done: {len(rows)} rows, {time.perf_counter() - t0:.1f}s")
 
     if args.db in ("mysql", "both"):
         ingest_mysql(rows)
     if args.db in ("pg", "both"):
         ingest_pg(rows)
-    print("完成。")
+    print("Done.")
 
 
 if __name__ == "__main__":

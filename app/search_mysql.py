@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
-"""MySQL 端的 Top-K 相似度檢索。
+"""Top-K similarity search on MySQL.
 
-社群版 MySQL 沒有 DISTANCE() 也沒有 ANN 索引，所以策略是：
-  1.（可選）先用 metadata（category）在 SQL 端粗過濾，縮小候選集
-  2. 把候選列的 VECTOR 以「原始 binary」拉回應用端（4 bytes/維 float32）
-  3. 用 NumPy 一次算完 cosine 相似度，排序取 Top-K
+Community MySQL has neither DISTANCE() nor an ANN index, so the strategy is:
+  1. (optional) coarse-filter candidates in SQL with metadata (category)
+  2. pull candidate VECTOR columns as raw binary (4 bytes/dim float32)
+  3. score cosine similarity in NumPy and take Top-K
 
-這正是本場演講的核心論點：MySQL 當「向量儲存層」，距離計算在應用端。
+That is the talk's core claim: MySQL is the vector store; distance is computed in the app.
 
-用法：
-    python search_mysql.py "退款多久會到？"
-    python search_mysql.py "退款多久會到？" --category 退換貨 --k 5
+Usage:
+    python search_mysql.py "How long until my refund arrives?"
+    python search_mysql.py "How long until my refund arrives?" --category Returns --k 5
 """
 import argparse
 import time
@@ -30,7 +30,7 @@ def topk(query: str, k: int = 3, category: str | None = None, verbose: bool = Tr
 
     t0 = time.perf_counter()
     if category:
-        # metadata 粗過濾：這是社群版 MySQL 最有效的「省算力」手段
+        # Metadata coarse filter: the most effective way to cut work on Community MySQL
         cur.execute("SELECT id, doc_id, title, content, embedding "
                     "FROM faq_chunks WHERE category = %s", (category,))
     else:
@@ -41,12 +41,12 @@ def topk(query: str, k: int = 3, category: str | None = None, verbose: bool = Tr
     if not rows:
         return []
 
-    # VECTOR 欄位讀回來就是 float32 的 binary，可直接 frombuffer——不需要 VECTOR_TO_STRING
+    # VECTOR comes back as float32 binary — frombuffer it; do not use VECTOR_TO_STRING
     mat = np.frombuffer(b"".join(r[4] for r in rows), dtype=np.float32)
     mat = mat.reshape(len(rows), config.EMBED_DIM)
 
     t1 = time.perf_counter()
-    scores = mat @ qv                        # normalized 向量 → 內積即 cosine 相似度
+    scores = mat @ qv                        # normalized vectors → dot product = cosine
     idx = np.argsort(-scores)[:k]
     t_rank = time.perf_counter() - t1
 
@@ -54,7 +54,7 @@ def topk(query: str, k: int = 3, category: str | None = None, verbose: bool = Tr
              "content": rows[i][3], "score": float(scores[i])} for i in idx]
 
     if verbose:
-        print(f"[MySQL] 候選 {len(rows)} 列｜fetch {t_fetch*1000:.1f} ms｜"
+        print(f"[MySQL] {len(rows)} candidates | fetch {t_fetch*1000:.1f} ms | "
               f"rank {t_rank*1000:.1f} ms")
         for h in hits:
             print(f"  {h['score']:.4f}  [{h['doc_id']}] {h['title']}")

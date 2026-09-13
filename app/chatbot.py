@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
-"""綠豆選物 AI 客服 —— RAG 問答迴圈（demo 主秀）。
+"""LitoShop AI support — the RAG Q&A loop (main demo).
 
-流程：使用者問題 → embedding → Top-K 檢索（MySQL 或 pgvector）
-      → 組 prompt（附知識庫內容與來源）→ Ollama LLM 生成繁中回答
+Flow: user question → embedding → Top-K retrieval (MySQL or pgvector)
+      → build prompt (knowledge-base text + sources) → Ollama LLM answer
 
-用法：
-    python chatbot.py                  # 互動模式，預設檢索 MySQL
-    python chatbot.py --db pg          # 改用 pgvector 檢索
-    python chatbot.py --no-llm         # 只看檢索結果不叫 LLM（測試用）
-    python chatbot.py -q "刷卡失敗怎麼辦"   # 單發模式
+Usage:
+    python chatbot.py                       # interactive, MySQL retrieval
+    python chatbot.py --db pg               # retrieve from pgvector
+    python chatbot.py --no-llm              # retrieval only, no LLM (for testing)
+    python chatbot.py -q "card payment failed"
 """
 import argparse
 import json
@@ -20,15 +20,15 @@ import config
 import search_mysql
 import search_pg
 
-SYSTEM = """你是台灣電商「綠豆選物」的 AI 客服。請遵守：
-1. 只根據提供的〈知識庫〉內容回答，知識庫沒有的資訊要誠實說「這個問題我需要為您轉接真人客服」。
-2. 用台灣慣用的繁體中文，語氣親切、精簡，條列重點。
-3. 回答結尾標註引用的知識庫編號，例如（參考：return-004）。"""
+SYSTEM = """You are the AI support agent for LitoShop, a Taiwan e-commerce store. Follow these rules:
+1. Answer only from the provided <knowledge base>. If it does not contain the answer, say honestly that you need to transfer the customer to a human agent.
+2. Write in clear, friendly English. Keep it concise and use bullet points for key facts.
+3. End the answer with the knowledge-base IDs you cited, e.g. (source: return-004)."""
 
 
 def build_prompt(question: str, hits: list[dict]) -> str:
     ctx = "\n\n".join(f"[{h['doc_id']}] {h['content']}" for h in hits)
-    return f"〈知識庫〉\n{ctx}\n\n〈顧客問題〉\n{question}"
+    return f"<knowledge base>\n{ctx}\n\n<customer question>\n{question}"
 
 
 def ask_llm(question: str, hits: list[dict]):
@@ -46,7 +46,7 @@ def ask_llm(question: str, hits: list[dict]):
         stream=True, timeout=600,
     )
     resp.raise_for_status()
-    print("\n🤖 綠豆選物客服：", end="", flush=True)
+    print("\n🤖 LitoShop support: ", end="", flush=True)
     for line in resp.iter_lines():
         if not line:
             continue
@@ -61,12 +61,12 @@ def answer(question: str, db: str, k: int, use_llm: bool):
     retriever = search_pg.topk if db == "pg" else search_mysql.topk
     hits = retriever(question, k=k, verbose=True)
     if not hits:
-        print("（檢索不到任何內容，請先執行 ingest.py）")
+        print("(no matches — run ingest.py first)")
         return
     if use_llm:
         ask_llm(question, hits)
     else:
-        print("--- 檢索到的知識庫內容（--no-llm 模式）---")
+        print("--- retrieved knowledge-base text (--no-llm) ---")
         for h in hits:
             print(f"\n[{h['doc_id']}] score={h['score']:.4f}\n{h['content'][:120]}...")
 
@@ -83,12 +83,12 @@ def main():
         answer(args.question, args.db, args.k, not args.no_llm)
         return
 
-    print(f"=== 綠豆選物 AI 客服（檢索：{args.db}，Ctrl-C 離開）===")
+    print(f"=== LitoShop AI support (retrieval: {args.db}, Ctrl-C to quit) ===")
     while True:
         try:
-            q = input("\n💬 請輸入問題：").strip()
+            q = input("\n💬 Your question: ").strip()
         except (EOFError, KeyboardInterrupt):
-            print("\n再見！")
+            print("\nGoodbye!")
             break
         if q:
             answer(q, args.db, args.k, not args.no_llm)

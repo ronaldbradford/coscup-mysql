@@ -1,4 +1,4 @@
-"""共用設定：由環境變數覆寫，預設值對應 docker-compose.yml。"""
+"""Shared settings. Override with env vars; defaults match docker-compose.yml."""
 import os
 
 MYSQL = dict(
@@ -15,8 +15,8 @@ PG_DSN = os.getenv(
 
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://127.0.0.1:11434")
 
-# embedding：bge-m3（MIT 授權，多語系表現佳，1024 維）
-# EMBED_BACKEND=fake 時使用「確定性假向量」——沒有 GPU / 沒拉模型也能跑通整個流程
+# Embedding: bge-m3 (MIT, strong multilingual, 1024 dims)
+# EMBED_BACKEND=fake uses deterministic dummy vectors so the pipeline runs without a GPU or pulled models
 EMBED_BACKEND = os.getenv("EMBED_BACKEND", "ollama")   # ollama | fake
 EMBED_MODEL = os.getenv("EMBED_MODEL", "bge-m3")
 EMBED_DIM = int(os.getenv("EMBED_DIM", "1024"))

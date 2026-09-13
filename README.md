@@ -1,89 +1,87 @@
-# 從零打造一個 MySQL-based RAG 系統
+# Building a MySQL-based RAG System from Scratch
 
-**VECTOR 型別實戰、工程取捨與 pgvector 對照**
+**VECTOR Type in Practice, Engineering Trade-offs, and a pgvector Comparison**
 
-> Building a RAG System on MySQL from Scratch — VECTOR Type in Practice, Engineering Trade-offs, and a pgvector Reference
+This repo is companion material for the **COSCUP 2026 MySQL track** talk of the same name. It includes the full demo code, SQL schemas, benchmark scripts, and slide sources.
 
-本 repo 為 **COSCUP 2026 MySQL 軌**同名議程的搭配資源，收錄完整 demo 程式碼、SQL schema、benchmark 腳本與投影片原始檔。
-
-- 議程：COSCUP 2026, MySQL Track（2026 年 8 月）
-- 講者：Hank
-- 程式碼授權：Apache-2.0
-- 內容（slides、文件）授權：CC BY-SA 4.0
+- Talk: COSCUP 2026, MySQL Track (August 2026)
+- Speaker: Hank
+- Code license: Apache-2.0
+- Content (slides, docs) license: CC BY-SA 4.0
 
 ---
 
 ## Abstract
 
-當大家談到 RAG（Retrieval-Augmented Generation），第一個想到的儲存層往往是 Pinecone、Qdrant、Milvus，或是 PostgreSQL + pgvector。但是在絕大多數企業既有的 stack 裡，MySQL 才是那個「明明就在那裡、卻幾乎沒有人在 RAG 選型討論中提到」的角色。
+When people talk about RAG (Retrieval-Augmented Generation), the first storage layers that come to mind are usually Pinecone, Qdrant, Milvus, or PostgreSQL + pgvector. In most existing enterprise stacks, though, MySQL is the database that is already there — and almost never mentioned in RAG architecture discussions.
 
-MySQL 9.0 已經正式加入 `VECTOR` 資料型別。那麼問題來了:在不另外搬一座資料庫的前提下,到底能不能用 MySQL 把一個可運作的 RAG 系統做出來?做得起來、又能撐多久?
+MySQL 9.0 officially added the `VECTOR` data type. So the question is: without standing up another database, can you actually build a working RAG system on MySQL? And if you can, how far will it go?
 
-本場次以一個從零打造、完整開源的 demo 專案為主軸,帶聽眾一步步在 MySQL 9.x 上構建 RAG 系統:從 schema 設計、embedding 寫入、Top-K 相似度查詢,到串接 LLM 完成問答。途中會深入 `VECTOR` 型別的內部儲存方式、可用函式,以及目前最關鍵的限制——社群版尚未提供原生 ANN 索引。
+This session walks through a from-scratch, fully open-source demo: building a RAG system on MySQL 9.x step by step — schema design, writing embeddings, Top-K similarity search, and wiring up an LLM for Q&A. Along the way we look at how the `VECTOR` type is stored internally, which functions are available, and the most important current limitation: Community Edition still has no native ANN index.
 
-接著,我們把同一份資料、同一組查詢搬到 PostgreSQL pgvector 上做對照組 benchmark,誠實呈現兩者在 latency、recall、開發體驗、維運成本上的差距。最後提出一個務實的選型決策框架:什麼情境下「在 MySQL 上做 RAG」是合理的工程選擇,什麼情境下應該果斷換工具。
+Then we move the same data and the same queries onto PostgreSQL pgvector as a control-group benchmark, and show the honest gaps in latency, recall, developer experience, and operational cost. We close with a practical decision framework: when “do RAG on MySQL” is a reasonable engineering choice, and when you should switch tools.
 
-所有 demo 程式碼、SQL schema、benchmark 腳本與投影片都會以 Apache-2.0 / CC BY-SA 授權公開於本 repo,現場聽眾可以即時在自己的環境重現。
-
----
-
-## 預期聽眾收穫
-
-1. 理解 MySQL `VECTOR` 型別的能力邊界與內部實作。
-2. 帶走一份可在自己環境跑起來的 RAG demo 專案（Docker Compose 一鍵啟動）。
-3. 一份 MySQL vs pgvector 的功能與效能對照表。
-4. 一個務實的「該不該在 MySQL 上做 RAG」選型決策框架。
-
-## 目標聽眾
-
-DBA、後端工程師、SRE，以及對 RAG 有興趣但不確定資料庫選型的工程師。難度為中階——需要基本 SQL 與 LLM／embedding 概念，不需要懂 ML 訓練。
+All demo code, SQL schemas, benchmark scripts, and slides will be published in this repo under Apache-2.0 / CC BY-SA, so attendees can reproduce the setup in their own environment.
 
 ---
 
-## Demo 案例
+## What you will take away
 
-虛構電商「**綠豆選物 LitoShop**」的 AI 客服：知識庫為合成的繁中電商客服 FAQ
-（43 個知識 chunk / 10 類別 / 173 句改寫評估問句，CC0 授權，無個資與版權疑慮），
-benchmark 可擴增至 10 萬筆。檢索雙後端（MySQL 9.7 / pgvector）一鍵切換。
+1. The capability bounds and internals of MySQL’s `VECTOR` type.
+2. A RAG demo you can run in your own environment (one-command Docker Compose).
+3. A MySQL vs pgvector feature and performance comparison.
+4. A practical “should we do RAG on MySQL?” decision framework.
 
-## Repo 結構
+## Who this is for
+
+DBAs, backend engineers, SREs, and anyone interested in RAG who is unsure about database choice. Intermediate level — you need basic SQL and LLM / embedding concepts, not ML training experience.
+
+---
+
+## Demo scenario
+
+AI customer support for a fictional store, **LitoShop**. The knowledge base is a synthetic English e-commerce support FAQ
+(43 knowledge chunks / 10 categories / 173 paraphrase evaluation questions, CC0, no PII or copyright issues).
+The benchmark can scale to 100,000 rows. Dual retrieval backends (MySQL 9.7 / pgvector) switch with one command.
+
+## Repo layout
 
 ```
 .
 ├── docker-compose.yml   # MySQL 9.7 + pgvector 0.8 (+ Ollama, profile: ai)
-├── Makefile             # make help 看所有指令
-├── mysql/init/          # MySQL schema（VECTOR(1024)）
-├── pgvector/init/       # pgvector schema + HNSW 說明
+├── Makefile             # make help lists all commands
+├── mysql/init/          # MySQL schema (VECTOR(1024))
+├── pgvector/init/       # pgvector schema + HNSW notes
 ├── app/                 # ingest / search_mysql / search_pg / chatbot / bench
-├── data/                # faq_seed.json + generate_faq.py（合成知識庫）
-├── bench/               # benchmark 結果（CSV）
-├── slides/              # Marp 投影片原始檔 + HTML/PDF
-└── docs/                # 40 分鐘專題設計、環境建置指南、現場 runbook
+├── data/                # faq_seed.json + generate_faq.py (synthetic knowledge base)
+├── bench/               # benchmark results (CSV)
+├── slides/              # Marp slide sources + HTML/PDF
+└── docs/                # 40-minute session design, setup guide, on-site runbook
 ```
 
-## 快速開始
+## Quick start
 
 ```bash
 git clone <repo-url> && cd <repo>
 make up        # MySQL 9.7 + pgvector
-make up-ai     # + Ollama（bge-m3 embedding、qwen3:4b LLM）
+make up-ai     # + Ollama (bge-m3 embedding, qwen3:4b LLM)
 make deps      # pip install -r app/requirements.txt
-make dataset   # 產生知識庫
-make ingest    # embedding + 寫入兩座 DB
-make chat      # AI 客服（MySQL 檢索）；make chat-pg 切 pgvector
-make bench-10k # benchmark（另有 bench-100k）
+make dataset   # generate the knowledge base
+make ingest    # embed + write to both databases
+make chat      # AI support (MySQL retrieval); make chat-pg switches to pgvector
+make bench-10k # benchmark (also bench-100k)
 ```
 
-> 沒有 GPU / 不想拉模型？`EMBED_BACKEND=fake` 可用確定性假向量跑通全流程
-> （語意品質為零，但流程與效能特性等價，適合 CI 與快速驗證）。
+> No GPU / don’t want to pull models? `EMBED_BACKEND=fake` runs the full pipeline with deterministic fake vectors
+> (zero semantic quality, but the flow and performance characteristics are equivalent — good for CI and a quick smoke test).
 >
-> 詳細指引：`docs/environment-setup.md`（VM 建置）、`docs/runbook.md`（演講日操作）。
+> Detailed guides: `docs/environment-setup.md` (VM setup), `docs/runbook.md` (talk-day operations).
 
 ---
 
-## 授權
+## License
 
-- 程式碼：[Apache-2.0](LICENSE)
-- 內容（slides、docs）：[CC BY-SA 4.0](LICENSE-CONTENT)
+- Code: [Apache-2.0](LICENSE)
+- Content (slides, docs): [CC BY-SA 4.0](LICENSE-CONTENT)
 
-引用時請註明來源並保留授權標示。
+Please attribute the source and keep the license notice when you reuse this material.

@@ -1,19 +1,19 @@
-# 環境建置指南（GCP / Azure VM + Docker Compose）
+# Environment setup (GCP / Azure VM + Docker Compose)
 
-目標：在雲端 VM 上架好完整 demo 環境（MySQL 9.7、pgvector、Ollama），
-會前完成資料 ingest 與 benchmark，現場只跑「查詢與問答」。
+Goal: stand up the full demo on a cloud VM (MySQL 9.7, pgvector, Ollama),
+finish ingest and the benchmark before the event, and on stage only run queries and Q&A.
 
-## 1. VM 規格建議
+## 1. Suggested VM size
 
-| 項目 | GCP | Azure | 說明 |
+| Item | GCP | Azure | Notes |
 | --- | --- | --- | --- |
-| 機型 | `e2-standard-4`（4 vCPU / 16GB） | `Standard_D4s_v5` | Ollama 跑 bge-m3 + qwen3:4b 需要 ~8GB，兩座 DB + 10 萬向量再抓 4GB |
-| 磁碟 | 60GB SSD（pd-balanced） | 64GB Premium SSD | image + 模型 + 10 萬筆雙庫資料約 25GB，留餘裕 |
+| Machine | `e2-standard-4` (4 vCPU / 16 GB) | `Standard_D4s_v5` | Ollama needs ~8 GB for bge-m3 + qwen3:4b; the two DBs + 100k vectors need another ~4 GB |
+| Disk | 60 GB SSD (pd-balanced) | 64 GB Premium SSD | images + models + 100k dual-DB data ≈ 25 GB; leave headroom |
 | OS | Ubuntu 24.04 LTS | Ubuntu 24.04 LTS | |
-| 區域 | `asia-east1`（彰化） | `East Asia`（香港） | 離會場近，SSH 延遲低 |
-| 費用參考 | 約 US$0.15/hr | 約 US$0.19/hr | 只在準備與演講期間開機即可 |
+| Region | `asia-east1` (Changhua) | `East Asia` (Hong Kong) | close to the venue, low SSH latency |
+| Cost (approx.) | ~US$0.15/hr | ~US$0.19/hr | only run it during prep and the talk |
 
-GCP 建立指令（gcloud）：
+GCP create command (`gcloud`):
 
 ```bash
 gcloud compute instances create coscup-rag \
@@ -23,9 +23,10 @@ gcloud compute instances create coscup-rag \
 gcloud compute ssh coscup-rag --zone=asia-east1-b
 ```
 
-> 防火牆不需要開任何對外 port——一切透過 SSH 操作，資料庫只聽 localhost（docker 預設 bind 0.0.0.0，VM 對外防火牆保持只開 22 即可）。
+> Do not open extra inbound ports. Everything is over SSH. Databases listen on localhost
+> (Docker binds 0.0.0.0 by default; keep the VM firewall at SSH/22 only).
 
-## 2. 安裝 Docker 與工具
+## 2. Install Docker and tools
 
 ```bash
 sudo apt-get update && sudo apt-get install -y ca-certificates curl git make python3-pip python3-venv
@@ -34,73 +35,73 @@ sudo usermod -aG docker $USER && newgrp docker
 docker --version && docker compose version
 ```
 
-## 3. 部署 demo
+## 3. Deploy the demo
 
 ```bash
-git clone <你的 repo URL> coscup && cd coscup
+git clone <your repo URL> coscup && cd coscup
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r app/requirements.txt
 
-make up          # MySQL 9.7 + pgvector（首次拉 image 約 2 分鐘）
-make up-ai       # Ollama + 拉 bge-m3（~1.2GB）與 qwen3:4b（~2.6GB），約 5-10 分鐘
-make dataset     # 產生知識庫（43 chunks + 173 評估問句）
-make ingest      # 真實 embedding + 寫入兩座 DB（bge-m3，約 1-2 分鐘）
+make up          # MySQL 9.7 + pgvector (first image pull ~2 min)
+make up-ai       # Ollama + pull bge-m3 (~1.2 GB) and qwen3:4b (~2.6 GB), about 5–10 min
+make dataset     # generate the knowledge base (43 chunks + 173 eval queries)
+make ingest      # real embeddings + write both DBs (bge-m3, about 1–2 min)
 ```
 
-驗收：
+Acceptance:
 
 ```bash
 cd app
-python3 search_mysql.py "退款多久會到？"     # 應命中 return-004
-python3 search_pg.py    "退款多久會到？"     # 結果應與上行一致
-python3 chatbot.py -q "刷卡一直失敗怎麼辦"    # 完整 RAG 回答（首次載入模型較慢）
+python3 search_mysql.py "How long until my refund arrives?"     # should hit return-004
+python3 search_pg.py    "How long until my refund arrives?"     # should match the line above
+python3 chatbot.py -q "my card keeps failing, what should I do?"    # full RAG answer (first model load is slower)
 ```
 
-## 4. 會前一天：跑 benchmark（重要）
+## 4. The day before: run the benchmark (important)
 
-benchmark 要在**你的 VM** 上重跑一次，把簡報表格換成自己的數字：
+Re-run the benchmark on **your** VM and replace the slide table with your numbers:
 
 ```bash
-make bench-10k    # 約 3 分鐘
-make bench-100k   # 約 15-20 分鐘（含 10 萬筆 embedding 與雙庫寫入）
+make bench-10k    # ~3 min
+make bench-100k   # ~15–20 min (includes 100k embeddings and dual-DB writes)
 cat bench/results-*.csv
 ```
 
-> 注意：bench 會在庫裡留下 10 萬筆 filler。跑完 benchmark 後，若要讓 demo I
-> 回到「小而美」狀態，重新 `make ingest` 即可（會 TRUNCATE 後重灌 43 筆）。
-> 建議順序：先錄備援影片 → 跑 benchmark 抄數字 → `make ingest` 還原 → 驗收一次。
+> Note: bench leaves 100k filler rows in the databases. After the benchmark, restore Demo I
+> to the “small and tidy” state with `make ingest` (TRUNCATE + reload the 43 rows).
+> Suggested order: record backup videos → run bench and copy numbers → `make ingest` to restore → one acceptance pass.
 
-## 5. 現場連線與呈現
+## 5. On-site connection and presentation
 
-- 用 `tmux` 開好三個窗格：`chatbot`、`mysql-cli`、`psql-cli`，斷線也不丟狀態：
+- Open three tmux panes: `chatbot`, `mysql-cli`, `psql-cli`, so a disconnect does not lose state:
   ```bash
   tmux new -s demo
-  # 窗格 0: cd app && source ../.venv/bin/activate
-  # 窗格 1: make mysql-cli
-  # 窗格 2: make psql-cli
+  # pane 0: cd app && source ../.venv/bin/activate
+  # pane 1: make mysql-cli
+  # pane 2: make psql-cli
   ```
-- 終端機字體調到 20pt 以上，深色背景亮色字；`PS1` 縮短提示字元。
-- SSH 斷線重連腳本先寫好：`gcloud compute ssh coscup-rag --zone=asia-east1-b -- -t tmux attach -t demo`
+- Terminal font 20pt or larger, dark background, light text; shorten `PS1`.
+- Have the reconnect command ready: `gcloud compute ssh coscup-rag --zone=asia-east1-b -- -t tmux attach -t demo`
 
-## 6. 本機備援（雙保險）
+## 6. Laptop fallback (belt and suspenders)
 
-會場網路不可信。筆電上準備一份完全相同的環境：
+Venue networks are untrustworthy. Keep an identical environment on the laptop:
 
 ```bash
-# 筆電（16GB RAM 可跑；Ollama 改用量化較小的 qwen3:1.7b 亦可）
+# Laptop (16 GB RAM is enough; you can swap Ollama to the smaller qwen3:1.7b)
 make up && make up-ai && make dataset && make ingest
 ```
 
-加上預錄影片（見 runbook），形成三層防線：雲端 VM → 本機 compose → 影片。
+Add the pre-recorded videos (see the runbook) for three layers: cloud VM → local compose → video.
 
-## 7. 版本紀錄（會前最後一週再確認一次）
+## 7. Version log (re-check the week before the talk)
 
-| 元件 | 本文撰寫時版本 | 確認方式 |
+| Component | Version at writing | How to confirm |
 | --- | --- | --- |
-| MySQL | 9.7.2（社群版，仍無 DISTANCE/ANN） | `docker exec rag-mysql mysql -V`；release notes |
+| MySQL | 9.7.2 (Community; still no DISTANCE/ANN) | `docker exec rag-mysql mysql -V`; release notes |
 | PostgreSQL | 18.4 | `SELECT version();` |
 | pgvector | 0.8.6 | `SELECT extversion FROM pg_extension WHERE extname='vector';` |
 | Ollama / bge-m3 / qwen3:4b | latest | `ollama list` |
-| MyVector（選配） | v1.26.5 | github.com/askdba/myvector releases |
+| MyVector (optional) | v1.26.5 | github.com/askdba/myvector releases |
 
-若 8 月前 MySQL 釋出新版把 vector search 下放社群版——那是大新聞，投影片第 10-12 頁要改寫，benchmark 全部重跑（這也會讓演講更精彩，不是壞事）。
+If MySQL ships Community vector search before August — that is big news. Rewrite slides 10–12 and re-run every benchmark (it also makes the talk better, not worse).

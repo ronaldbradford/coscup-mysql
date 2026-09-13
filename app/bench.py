@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
-"""Benchmark：同資料、同查詢，MySQL（app-side 全掃描）vs pgvector（seq scan / HNSW）。
+"""Benchmark: same data, same queries, MySQL (app-side full scan) vs pgvector (seq scan / HNSW).
 
-情境：
-  mysql_full      — MySQL 全表拉回 + NumPy cosine（無 metadata 過濾）
-  mysql_filtered  — MySQL 先以 category 過濾（約砍到 1/10）再 app-side 排序
-  pg_seq          — pgvector 無索引（exact，seq scan）
-  pg_hnsw         — pgvector HNSW 索引（ANN）
+Scenarios:
+  mysql_full      — MySQL full-table fetch + NumPy cosine (no metadata filter)
+  mysql_filtered  — MySQL filters by category first (~1/10 of rows) then ranks in the app
+  pg_seq          — pgvector with no index (exact, seq scan)
+  pg_hnsw         — pgvector HNSW index (ANN)
 
-用法：
+Usage:
     python bench.py --scale 10000 --queries 30
     python bench.py --scale 100000 --queries 30 --out ../bench/results-100k.csv
 """
@@ -28,9 +28,11 @@ import embedder
 sys.path.insert(0, str(Path(__file__).parent.parent / "data"))
 from generate_faq import FILLER_TOPICS, make_filler  # noqa: E402
 
-QUERIES = ["退款多久會入帳", "超商取貨過期沒領", "刷卡一直失敗怎麼辦", "購物金有效期限",
-           "發票想打統編", "包裹顯示送達但沒收到", "會員等級的優惠", "折扣碼不能用",
-           "尺寸不合想換貨", "帳號被盜用了"]
+QUERIES = ["how long until my refund posts", "missed a convenience-store pickup",
+           "my card keeps failing", "does store credit expire",
+           "I need a company tax ID on the invoice", "tracking says delivered but I never got it",
+           "member-tier benefits", "discount code does not work",
+           "wrong size I want to exchange", "my account was stolen"]
 
 
 def pct(xs, p):
@@ -39,8 +41,8 @@ def pct(xs, p):
 
 
 def fill_dbs(n):
-    """把知識庫擴充到 n 筆（含 filler），同步寫入兩座 DB。"""
-    print(f"產生 {n} 筆 filler 與 embedding（backend={config.EMBED_BACKEND}）...")
+    """Grow the knowledge base to n rows (including filler) and write both DBs."""
+    print(f"Generating {n} filler rows and embeddings (backend={config.EMBED_BACKEND})...")
     rows = []
     fillers = make_filler(n)
     B = 512
@@ -60,7 +62,7 @@ def fill_dbs(n):
     for i in range(0, len(rows), 1000):
         mc.executemany(sql_my, rows[i:i + 1000]); my.commit()
         print(f"  MySQL insert {min(i+1000, len(rows))}/{len(rows)}", end="\r")
-    print(f"\n  MySQL 寫入 {time.perf_counter()-t0:.1f}s")
+    print(f"\n  MySQL write {time.perf_counter()-t0:.1f}s")
     mc.close(); my.close()
 
     pg = psycopg2.connect(config.PG_DSN); pc = pg.cursor()
@@ -72,7 +74,7 @@ def fill_dbs(n):
     for i in range(0, len(rows), 1000):
         pc.executemany(sql_pg, rows[i:i + 1000]); pg.commit()
         print(f"  pg insert {min(i+1000, len(rows))}/{len(rows)}", end="\r")
-    print(f"\n  pgvector 寫入 {time.perf_counter()-t0:.1f}s")
+    print(f"\n  pgvector write {time.perf_counter()-t0:.1f}s")
     pc.close(); pg.close()
 
 
@@ -97,7 +99,7 @@ def bench_mysql(qvecs, category=None):
 def bench_pg(qvecs, hnsw: bool):
     conn = psycopg2.connect(config.PG_DSN); cur = conn.cursor()
     if hnsw:
-        print("  建立 HNSW 索引（build time 也是成本，計入報告）...")
+        print("  Building HNSW index (build time is a cost; included in the report)...")
         t0 = time.perf_counter()
         cur.execute("SET maintenance_work_mem='1GB'")
         cur.execute("CREATE INDEX IF NOT EXISTS idx_faq_embedding ON faq_chunks "
@@ -122,7 +124,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--scale", type=int, default=10000)
     ap.add_argument("--queries", type=int, default=30)
-    ap.add_argument("--skip-fill", action="store_true", help="資料已在庫，直接測")
+    ap.add_argument("--skip-fill", action="store_true", help="data already loaded; just measure")
     ap.add_argument("--out", default=None)
     args = ap.parse_args()
 
@@ -156,7 +158,7 @@ def main():
             for name, lat, note in results:
                 w.writerow([name, args.scale, f"{pct(lat,50):.1f}",
                             f"{pct(lat,95):.1f}", f"{statistics.mean(lat):.1f}", note])
-        print(f"\n結果已寫入 {args.out}")
+        print(f"\nWrote results to {args.out}")
 
 
 if __name__ == "__main__":
