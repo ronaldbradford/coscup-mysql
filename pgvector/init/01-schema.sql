@@ -1,5 +1,5 @@
--- COSCUP 2026 · pgvector 對照組
--- PostgreSQL 18 + pgvector 0.8.x：vector 型別 + 距離運算子 + HNSW ANN 索引
+-- COSCUP 2026 · pgvector control group
+-- PostgreSQL 18 + pgvector 0.8.x: vector type + distance operators + HNSW ANN index
 
 CREATE EXTENSION IF NOT EXISTS vector;
 
@@ -15,11 +15,11 @@ CREATE TABLE IF NOT EXISTS faq_chunks (
 
 CREATE INDEX IF NOT EXISTS idx_faq_category ON faq_chunks (category);
 
--- HNSW 索引（cosine）。demo 時會現場展示建立前後的 EXPLAIN 差異，
--- 因此預設「不」在 init 建立，由 make pg-index 或 bench 腳本建立：
+-- HNSW index (cosine). The talk shows EXPLAIN before vs after the index,
+-- so we do *not* create it during init. Use make pg-index or the bench script:
 --   CREATE INDEX idx_faq_embedding ON faq_chunks
 --   USING hnsw (embedding vector_cosine_ops) WITH (m = 16, ef_construction = 64);
 
--- 查詢範例：
+-- Query example:
 --   SELECT id, title, embedding <=> $1 AS dist
 --   FROM faq_chunks ORDER BY embedding <=> $1 LIMIT 5;
