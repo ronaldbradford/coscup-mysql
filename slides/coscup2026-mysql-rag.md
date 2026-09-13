@@ -4,7 +4,7 @@ theme: default
 paginate: true
 size: 16:9
 style: |
-  :root { font-family: "Noto Sans TC", "PingFang TC", sans-serif; }
+  :root { font-family: "Noto Sans", "Helvetica Neue", "Arial", sans-serif; }
   section { font-size: 26px; padding: 60px; }
   h1 { color: #00618A; font-size: 44px; }
   h2 { color: #00618A; }
@@ -25,149 +25,149 @@ footer: "COSCUP 2026 · MySQL Track · CC BY-SA 4.0"
 <!-- _class: lead -->
 <!-- _paginate: false -->
 
-# 從零打造一個 MySQL-based RAG 系統
+# Building a MySQL-based RAG System from Scratch
 
-## VECTOR 型別實戰、工程取捨與 pgvector 對照
+## VECTOR Type in Practice, Engineering Trade-offs, and a pgvector Comparison
 
-**Hank（綠豆湯 / litotom）**
+**Hank (Green Bean Soup / litotom)**
 COSCUP 2026 · MySQL Track
 
-![GitHub repo QR code w:180 h:180](data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUoAAAFKAQMAAABB54RGAAAABlBMVEUAYYr///+Db5d/AAABoElEQVR42u2bQY4DMQgE0foBfpK/7ifNAyyxMQZMblkpK/WhfbBmJuSSkpuGIaKfrikMZShD/xT6iK9hV32dr8vYm6/2Cv2RjxdD/yd002rqeB6Re2WMDNkJIS0UWk7maQXU+cBuB2kB0tLlSjhtE9KCPlubzJE+2ciUtIDz1vEddrscI/MWGq3rCW/yio2eEIxWWZatqjpWs88fC0UJZ96P9PJmNS430oJRwoPnCmNPd7jth3SeLaizZXiyHJ5Rb7mNpxJiuYxeU5Z7wiy/6AnBHLylp0MmCix/RgePVx0HKPcbWxjZ1QVVwsNoFBsfPjErL9JCqrdWtpoST9dwGaSFQytASeIR8TZG+A16Qqx6q3kv9zZ002Cw3kJz8Jm3jv7l5gSphEgu41bCEsnL05guYXUMWB27HJaaOIOohGCesKpeOWAasxqkBfd+y89ReMJWJmtIC3HmaaZ5L61dKiFW56nMZaxoNb0DJS28CbXadMrCmLQQaakPp701efnuGDRv6ap47Nm19qSFOPNUevChjvSEiPUW/+LBUIZ+LfQXkMoR1Jkm6O4AAAAASUVORK5CYII=)
+![GitHub repo QR code w:180 h:180](data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUoAAAFKAQMAAABB54RGAAAABlBMVEUAYYr///+Db5d/AAABoElEQVR42u2bQY4DMQgE0foBfpK/7ifNAyyxMQZMblkpK/WhfbBmJuSSkpuGIaKfrikMZShD/xT6iK9hV32dr8vYm6/2Cv2RjxdD/yd002rqeB6Re2WMDNkJIS0UWk7maQXU+cBuB2kB0tLlSjhtE9KCPlubzJE+2ciUtIDz1vEddrscI/MWGq3rCW/yio2eEIxWWZatqjpWs88fC0UJZ96P9PLmNS430oJRwoPnCmNPd7jth3SeLaizZXiyHJ5Rb7mNpxJiuYxeU5Z7wiy/6AnBHLylp0MmCix/RgePVx0HKPcbWxjZ1QVVwsNoFBsfPjErL9JCqrdWtpoST9dwGaSFQytASeIR8TZG+A16Qqx6q3kv9zZ002Cw3kJz8Jm3jv7l5gSphEgu41bCEsnL05guYXUMWB27HJaaOIOohGCesKpeOWAasxqkBfd+y89ReMJWJmtIC3HmaaZ5L61dKiFW56nMZaxoNb0DJS28CbXadMrCmLQQaakPp701efnuGDRv6ap47Nm19qSFOPNUevChjvSEiPUW/+LBUIZ+LfQXkMoR1Jkm6O4AAAAASUVORK5CYII=)
 
-**投影片與範例程式碼** · https://github.com/hanktom/coscup-mysql
+**Slides and sample code** · https://github.com/hanktom/coscup-mysql
 
 ---
 
-# 關於我
+# About me
 
-- 軟體開發 30 年：程式設計師 → 軟體部經理 → 技術顧問 → 總監
-- 「綠豆湯」技術部落格（litotom）發起人
-- 全球第 18 位 Google Certified Android Developer
-- 今天的身分：**幫 DBA 說話的人**
+- 30 years in software: programmer → software manager → technical consultant → director
+- Founder of the **Green Bean Soup** tech blog (litotom)
+- The 18th Google Certified Android Developer in the world
+- Today’s role: **someone who speaks for the DBA**
 
 <!--
-30 秒帶過，不停留。
+Cover in 30 seconds. Do not linger.
 -->
 
 ---
 
-# 綠豆選物的客服危機
+# LitoShop’s support crisis
 
-虛構電商「綠豆選物 LitoShop」，客服每天被問：
+Fictional store **LitoShop**. Support gets asked this every day:
 
-> 「退款多久會到？」
-> 「錢什麼時候退回我卡裡？」
-> 「刷退了怎麼帳單上還沒看到？」
+> “How long until my refund arrives?”
+> “When will the money go back to my card?”
+> “I was refunded — why isn’t it on my statement yet?”
 
-**同一個答案，一百種問法。**
+**Same answer. A hundred ways to ask it.**
 
-老闆說：上 AI 客服。
-
----
-
-# 於是有了那場會議
-
-**架構師**：「要做 RAG，我們得加一座向量資料庫。Pinecone？Qdrant？還是上 pgvector？」
-
-**DBA**：「……我們不是有 MySQL 嗎？」
-
-（會議室安靜了三秒）
-
-**這場演講，就是那三秒之後的完整技術答辯。**
+Leadership says: ship AI support.
 
 ---
 
-# 今天要回答的問題
+# Then came that meeting
 
-**「公司只有 MySQL，能不能不搬資料庫，把 RAG 做起來？」**
+**Architect:** “To do RAG, we have to add a vector database. Pinecone? Qdrant? Or pgvector?”
 
-- MySQL 9.x `VECTOR` 型別到底能做什麼、不能做什麼
-- 從零跑起一個 AI 客服（全開源、可重現）
-- 同資料同查詢，與 pgvector 誠實對照
-- 一個帶得走的選型決策框架
+**DBA:** “…don’t we already have MySQL?”
 
-不談：LLM 訓練、向量數學、HeatWave 等雲端專屬功能
+(The room goes quiet for three seconds.)
+
+**This talk is the full technical answer after those three seconds.**
 
 ---
 
-# RAG，一頁講完
+# The question we will answer today
+
+**“We only have MySQL. Can we do RAG without standing up another database?”**
+
+- What MySQL 9.x `VECTOR` can and cannot do
+- A from-scratch AI-support demo (fully open source, reproducible)
+- Same data, same queries, an honest pgvector comparison
+- A decision framework you can take home
+
+Out of scope: LLM training, vector math, HeatWave and other cloud-only features
+
+---
+
+# RAG on one slide
 
 ```
-顧客問題 ──▶ Embedding 模型 ──▶ 向量 q
-                                  │
-                知識庫（向量化） ──┤  相似度檢索 Top-K
-                                  ▼
-             「參考資料 + 問題」──▶ LLM ──▶ 回答（附來源）
+Customer question ──▶ Embedding model ──▶ vector q
+                                           │
+                Knowledge base (embedded) ─┤  similarity search Top-K
+                                           ▼
+             “references + question” ──▶ LLM ──▶ answer (with sources)
 ```
 
-- Embedding：把語意變成向量（今天用 **bge-m3**，1024 維，MIT 授權）
-- 檢索：**在一堆向量裡找最近的 K 個 —— 這就是資料庫的工作**
-- 今天的主角只有一個：**檢索層的資料庫**
+- Embedding: turn meaning into a vector (today: **bge-m3**, 1024 dims, MIT license)
+- Retrieval: **find the nearest K vectors in a pile — that is the database’s job**
+- Today has one star: **the retrieval-layer database**
 
 ---
 
-# RAG 選型討論的現況
+# How RAG storage gets discussed today
 
-大家想到的儲存層：
+The storage layers people reach for:
 
 Pinecone ｜ Qdrant ｜ Milvus ｜ Weaviate ｜ **PostgreSQL + pgvector**
 
-沒有人提 MySQL。
+Nobody mentions MySQL.
 
-但現實是——
+But the reality is—
 
-**MySQL 是企業既有 stack 裡最常見的 OLTP 資料庫。**
-你的訂單、會員、商品，本來就住在裡面。
-
----
-
-# 「就用 MySQL」的真實誘因
-
-- **不搬資料**：知識庫和交易資料同一座庫，直接 `JOIN`
-- **不加維運面**：沒有新資料庫要備份、監控、升級、待命
-- **權限與稽核**：既有的帳號體系、audit 流程直接沿用
-- **團隊技能**：DBA 已經在了
-
-這些不是懶惰，是**工程成本的真實計算**。
-
-問題只剩一個：MySQL 做得到嗎？
+**MySQL is the most common OLTP database already in the enterprise stack.**
+Your orders, members, and products already live there.
 
 ---
 
-# MySQL 9.x 的 VECTOR 型別
+# The real reasons to “just use MySQL”
 
-MySQL 9.0（2024-07）正式引入：
+- **Don’t move the data**: knowledge base and transactions in one database; `JOIN` them directly
+- **Don’t add ops surface**: no new database to back up, monitor, upgrade, or staff
+- **Permissions and audit**: reuse the existing accounts and audit process
+- **Team skills**: the DBA is already here
+
+That is not laziness. It is an **honest engineering-cost calculation**.
+
+Only one question left: can MySQL actually do it?
+
+---
+
+# The VECTOR type in MySQL 9.x
+
+MySQL 9.0 (2024-07) officially introduced:
 
 ```sql
 CREATE TABLE faq_chunks (
   id        INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   category  VARCHAR(32)  NOT NULL,
   content   TEXT         NOT NULL,
-  embedding VECTOR(1024) NOT NULL     -- ◀ 主角
+  embedding VECTOR(1024) NOT NULL     -- ◀ the star
 );
 ```
 
-- 每維 4 bytes（float32）的 binary 儲存，上限 16,383 維
-- 1024 維 ≈ 4KB／列，10 萬筆 ≈ 400MB
-- InnoDB、binlog、replication 一切照舊——**它就是個欄位**
+- 4 bytes per dim (float32) binary storage, max 16,383 dims
+- 1024 dims ≈ 4 KB / row; 100,000 rows ≈ 400 MB
+- InnoDB, binlog, replication all work as usual — **it is just a column**
 
 ---
 
-# 社群版給你的函式：就這三個
+# Community Edition gives you three functions. That’s it.
 
 ```sql
-SELECT STRING_TO_VECTOR('[0.1, 0.2, 0.3]');   -- 寫入用
-SELECT VECTOR_TO_STRING(embedding);            -- 讀出成文字
-SELECT VECTOR_DIM(embedding);                  -- 維度
+SELECT STRING_TO_VECTOR('[0.1, 0.2, 0.3]');   -- write
+SELECT VECTOR_TO_STRING(embedding);            -- read as text
+SELECT VECTOR_DIM(embedding);                  -- dimension
 ```
 
-那……計算相似度的函式呢？
+So… where is the similarity function?
 
 ---
 
 <!-- _class: demo -->
 
-# Live：算個距離吧
+# Live: let’s compute a distance
 
 ```sql
 mysql> SELECT DISTANCE(
@@ -181,64 +181,64 @@ mysql> SELECT DISTANCE(
 ERROR 1305 (42000): FUNCTION ragdemo.DISTANCE does not exist
 ```
 
-官方文件：*「DISTANCE() … available only for MySQL HeatWave on OCI」*
+Official docs: *“DISTANCE() … available only for MySQL HeatWave on OCI”*
 
 ---
 
-# 現況總結（至 MySQL 9.7，2026-04 GA）
+# Current state (through MySQL 9.7, 2026-04 GA)
 
-| 能力 | 社群版 | HeatWave (OCI) |
+| Capability | Community | HeatWave (OCI) |
 | --- | :-: | :-: |
-| `VECTOR` 型別儲存 | 有 | 有 |
-| 轉換函式（`STRING_TO_VECTOR` 等） | 有 | 有 |
-| `DISTANCE()` 距離函式 | <span class="warn">無</span> | 有 |
-| ANN 索引（HNSW / IVF） | <span class="warn">無</span> | 有 |
+| `VECTOR` type storage | Yes | Yes |
+| Conversion helpers (`STRING_TO_VECTOR`, …) | Yes | Yes |
+| `DISTANCE()` function | <span class="warn">No</span> | Yes |
+| ANN indexes (HNSW / IVF) | <span class="warn">No</span> | Yes |
 
-> 型別給了，引擎沒給。
-> **「像一台有座椅和方向盤、但沒有引擎的車。」**
+> You got the type, not the engine.
+> **“A car with seats and a steering wheel — but no engine.”**
 
-那就自己裝引擎——距離計算，搬到應用端。
-
----
-
-# Demo 架構：綠豆選物 AI 客服
-
-```
- 顧客問題
-    │
-    ▼
- Ollama / bge-m3 ──▶ 查詢向量（1024 維）
-    │
-    ▼
- MySQL 9.7 ─── SQL 過濾候選 ──▶ 應用端 NumPy 算 cosine ──▶ Top-3
-    │
-    ▼
- Ollama / qwen3:4b ──▶ 繁中回答（附知識庫來源）
-```
-
-全開源、全本地、`docker compose up` 可重現
-知識庫：合成的「綠豆選物」客服 FAQ（CC0，43 chunks / 10 類別）
+So we install the engine ourselves: compute distance in the application.
 
 ---
 
-# 檢索策略：MySQL 當儲存層，Python 當引擎
+# Demo architecture: LitoShop AI support
+
+```
+ Customer question
+    │
+    ▼
+ Ollama / bge-m3 ──▶ query vector (1024 dims)
+    │
+    ▼
+ MySQL 9.7 ─── SQL-filter candidates ──▶ app-side NumPy cosine ──▶ Top-3
+    │
+    ▼
+ Ollama / qwen3:4b ──▶ English answer (with knowledge-base sources)
+```
+
+Fully open source, fully local, reproducible with `docker compose up`
+Knowledge base: synthetic LitoShop support FAQ (CC0, 43 chunks / 10 categories)
+
+---
+
+# Retrieval strategy: MySQL stores, Python is the engine
 
 ```python
 cur.execute("SELECT id, title, content, embedding FROM faq_chunks")
 rows = cur.fetchall()
 
-# VECTOR 欄位讀回來就是 float32 binary → 直接 frombuffer，零解析成本
+# VECTOR comes back as float32 binary → frombuffer directly, zero parse cost
 mat = np.frombuffer(b"".join(r[3] for r in rows), dtype=np.float32)
 mat = mat.reshape(len(rows), 1024)
 
-scores = mat @ query_vec            # 已 normalize：內積 = cosine
+scores = mat @ query_vec            # already normalized: dot product = cosine
 topk   = np.argsort(-scores)[:3]
 ```
 
-兩個關鍵細節：
+Two details that matter:
 
-- 取 **原始 binary**，不要 `VECTOR_TO_STRING`（省一次文字解析）
-- embedding 先 normalize，cosine 退化成一個矩陣乘法
+- Read the **raw binary**. Do not use `VECTOR_TO_STRING` (skip a text parse)
+- Normalize embeddings first; cosine collapses to one matrix multiply
 
 ---
 
@@ -246,90 +246,90 @@ topk   = np.argsort(-scores)[:3]
 
 # ▶ Live Demo I
 
-## 綠豆選物 AI 客服 on MySQL
+## LitoShop AI support on MySQL
 
-「退款多久會到？」→「錢什麼時候退回我卡裡？」
-換尺寸要收費嗎？｜ ATM 解除分期是詐騙嗎？
-
----
-
-# Demo I 小結
-
-- 43 個知識 chunk、幾百條 FAQ 規模：檢索 **2–3 ms**
-- 完全不同的問法，語意檢索照樣命中——關鍵字搜尋做不到
-- RAG 讓 LLM「說對的話」：答案有來源、可稽核
-
-<span class="ok">在這個規模，MySQL 就是夠用。</span>
-
-會議可以散會了嗎？
+“How long until my refund arrives?” → “When will the money go back to my card?”
+Is there a fee to exchange sizes? ｜ Is an ATM “cancel installment” call a scam?
 
 ---
 
-# 還不行：知識庫會長大
+# Demo I recap
 
-客服 FAQ 只是開始。接下來會進來的是：
+- 43 knowledge chunks, a few hundred FAQ rows: retrieval in **2–3 ms**
+- Completely different wording still hits — keyword search cannot do this
+- RAG makes the LLM say the *right* thing: answers have sources and can be audited
 
-- 全站**商品說明**（數萬筆）
-- 歷史**客服工單**（數十萬筆）
-- 站內文章、規格表、評價……
+<span class="ok">At this scale, MySQL is enough.</span>
 
-**10 萬筆向量時，剛剛那套還撐得住嗎？**
+Can we adjourn the meeting?
 
 ---
 
-# Benchmark：同資料、同查詢
+# Not yet: the knowledge base will grow
 
-*（7GB RAM 容器實測，p50；現場數據以講者 VM 重跑為準）*
+A support FAQ is only the start. Next in the door:
 
-| 情境 | 1 萬筆 | 10 萬筆 |
+- Site-wide **product copy** (tens of thousands of rows)
+- Historical **support tickets** (hundreds of thousands of rows)
+- Articles, spec sheets, reviews…
+
+**At 100,000 vectors, does the setup we just used still hold?**
+
+---
+
+# Benchmark: same data, same queries
+
+*(Measured in a 7 GB RAM container, p50; on stage, rerun on the speaker’s VM)*
+
+| Scenario | 10k rows | 100k rows |
 | --- | --: | --: |
-| MySQL 全掃描 + 應用端排序 | 242 ms | <span class="warn">2,144 ms</span> |
-| MySQL `category` 過濾（砍到 1/10） | 38 ms | 244 ms |
-| pgvector 無索引（exact） | 39 ms | 469 ms |
+| MySQL full scan + app-side sort | 242 ms | <span class="warn">2,144 ms</span> |
+| MySQL `category` filter (cut to 1/10) | 38 ms | 244 ms |
+| pgvector no index (exact) | 39 ms | 469 ms |
 | pgvector **HNSW** | 2.2 ms | <span class="ok">9.7 ms</span> |
 
 ---
 
-# 2 秒是怎麼來的？
+# Where do the 2 seconds come from?
 
-每一次查詢，MySQL 方案都在做這件事：
+On every query, the MySQL approach does this:
 
-**把 400MB 的向量搬出資料庫，再全部算一遍。**
+**Move 400 MB of vectors out of the database, then compute over all of them.**
 
-- 瓶頸不在 NumPy（矩陣乘法只佔 ~5%）
-- 瓶頸在 **網路傳輸 + 驅動反序列化**
-- 資料量 ×10，延遲就 ×10——**線性，沒有懸念**
+- The bottleneck is not NumPy (the matrix multiply is ~5%)
+- The bottleneck is **network transfer + driver deserialization**
+- 10× the data → 10× the latency — **linear, no surprises**
 
-pgvector 為什麼快？距離計算**留在資料庫裡**，HNSW 讓它**不必全算**。
-
----
-
-# MySQL 陣營的規避術
-
-- **Metadata 粗過濾**（最有效）：客服天然有 `category`／`tenant` 維度
-  → 一個 `WHERE` 砍掉 90% 候選，2,144ms → 244ms
-- **Partition by tenant**：多租戶 SaaS 場景，每租戶各自小全掃
-- **覆蓋索引**：`(category, id)` + 二段式取向量，減少搬運
-- **Read replica**：向量查詢分流，別跟交易搶 buffer pool
-
-<span class="warn">誠實說：這些都是「延後失守」，不是 ANN 的替代品。</span>
+Why is pgvector fast? Distance stays **inside the database**, and HNSW means you **do not compute everything**.
 
 ---
 
-# 對照組登場：PostgreSQL + pgvector
+# Workarounds from the MySQL camp
 
-- 開源 extension（PostgreSQL License），目前 0.8.x
-- `vector` 型別 + **6 種距離運算子** + **HNSW / IVFFlat 索引**
-- 0.8 的 iterative index scan：過濾條件與 ANN 索引的配合更聰明
+- **Metadata coarse filter** (most effective): support naturally has `category` / `tenant`
+  → one `WHERE` drops 90% of candidates, 2,144 ms → 244 ms
+- **Partition by tenant**: multi-tenant SaaS; each tenant stays a small full scan
+- **Covering index**: `(category, id)` + two-step vector fetch, less data movement
+- **Read replica**: offload vector queries; do not fight OLTP for the buffer pool
+
+<span class="warn">Honestly: these delay the collapse. They are not a substitute for ANN.</span>
+
+---
+
+# Control group: PostgreSQL + pgvector
+
+- Open-source extension (PostgreSQL License), currently 0.8.x
+- `vector` type + **6 distance operators** + **HNSW / IVFFlat indexes**
+- 0.8 iterative index scan: filters and ANN indexes cooperate more smartly
 
 ```sql
 SELECT doc_id, title, embedding <=> :query_vec AS dist
 FROM   faq_chunks
-ORDER  BY embedding <=> :query_vec     -- 距離計算在 DB 內
-LIMIT  5;                              -- 有 HNSW 就走 ANN
+ORDER  BY embedding <=> :query_vec     -- distance computed in the DB
+LIMIT  5;                              -- with HNSW this is ANN
 ```
 
-同一支 chatbot，`--db pg` 一個參數切換。
+Same chatbot. One flag: `--db pg`.
 
 ---
 
@@ -337,61 +337,61 @@ LIMIT  5;                              -- 有 HNSW 就走 ANN
 
 # ▶ Live Demo II
 
-## 同一份資料，搬進 pgvector
+## Same data, moved into pgvector
 
 `ORDER BY embedding <=> q` ｜ `EXPLAIN ANALYZE`
-HNSW 索引建立前 vs 後
+HNSW index: before vs after
 
 ---
 
-# EXPLAIN 前後（10 萬筆）
+# EXPLAIN before and after (100k rows)
 
-**建索引前：**
+**Before the index:**
 
 ```
 Limit ... Sort ... Seq Scan on faq_chunks
 Execution Time: ~470 ms
 ```
 
-**`CREATE INDEX ... USING hnsw (embedding vector_cosine_ops)` 之後：**
+**After `CREATE INDEX ... USING hnsw (embedding vector_cosine_ops)`:**
 
 ```
 Limit ... Index Scan using idx_faq_embedding on faq_chunks
 Execution Time: ~10 ms
 ```
 
-一條 DDL，差 47 倍。<span class="ok">這就是 ANN 索引的價值。</span>
+One DDL statement, a 47× difference. <span class="ok">That is the value of an ANN index.</span>
 
 ---
 
-# 一頁對照表
+# One-page comparison
 
-| | MySQL 9.7 社群版 | PostgreSQL + pgvector 0.8 |
+| | MySQL 9.7 Community | PostgreSQL + pgvector 0.8 |
 | --- | --- | --- |
-| 向量型別 | `VECTOR`（≤16,383 維） | `vector` / `halfvec` / `sparsevec` |
-| 距離計算 | <span class="warn">無</span>（應用端自理） | 6 種運算子，DB 內完成 |
-| ANN 索引 | <span class="warn">無</span> | HNSW / IVFFlat |
-| 過濾 + 向量檢索 | SQL 過濾 → app 排序 | iterative index scan |
-| 額外維運成本 | 零（既有 stack） | 多一座 PG（若原本沒有） |
-| 交易資料 JOIN | 同庫直接 JOIN | 要看你資料住哪 |
+| Vector type | `VECTOR` (≤16,383 dims) | `vector` / `halfvec` / `sparsevec` |
+| Distance | <span class="warn">None</span> (app-side) | 6 operators, inside the DB |
+| ANN index | <span class="warn">None</span> | HNSW / IVFFlat |
+| Filter + vector search | SQL filter → app sort | iterative index scan |
+| Extra ops cost | Zero (existing stack) | Another PG (if you do not have one) |
+| JOIN to transactional data | Same database, direct JOIN | Depends on where the data lives |
 
 ---
 
-# pgvector 也不是免費午餐
+# pgvector is not a free lunch either
 
-- **HNSW build**：10 萬筆 1024 維約需分鐘級 + 足夠的 `maintenance_work_mem`
-  （我們在 demo 環境就先踩了 shm 不足的坑）
-- **ANN = 近似**：recall 不是 100%，`ef_search` 要調
-- **多一座資料庫**：備份、HA、升級、監控、人力——當初不想搬的理由都還在
-- 資料要**同步**過去：CDC 或雙寫，一致性是你的責任
+- **HNSW build**: 100k rows × 1024 dims takes on the order of minutes + enough `maintenance_work_mem`
+  (we already hit the too-small shm pit in the demo environment)
+- **ANN = approximate**: recall is not 100%; tune `ef_search`
+- **Another database**: backup, HA, upgrades, monitoring, people — every reason you did not want to move is still here
+- Data has to be **synced** over: CDC or dual-write; consistency is on you
 
-選 pgvector 不是「按下開關」，是「接下一座資料庫」。
+Choosing pgvector is not “flip a switch.” It is “take on another database.”
 
 ---
 
-# 第三條路：社群自己裝引擎 — MyVector
+# Third path: the community installs the engine — MyVector
 
-開源（GPLv2）的 MySQL plugin／component，HNSW ANN 直接進 MySQL：
+Open-source (GPLv2) MySQL plugin / component. HNSW ANN lands inside MySQL:
 
 ```sql
 CREATE TABLE faq (
@@ -404,71 +404,71 @@ SELECT id, myvector_row_distance() AS d FROM faq
 WHERE  MYVECTOR_IS_ANN('ragdemo.faq.vec', 'id', @qvec, 10);
 ```
 
-- binlog 同步索引、支援 MySQL 8.0 / 8.4 / 9.7
-- 定位：想留在 MySQL、又真的需要 ANN 的人
-- 風險自評：第三方 plugin 的升級週期、支援量能、社群規模
+- Index synced via binlog; supports MySQL 8.0 / 8.4 / 9.7
+- Positioning: for people who want to stay on MySQL and really need ANN
+- Judge the risk yourself: third-party plugin upgrade cycle, support capacity, community size
 
 ---
 
-# 三岔路決策框架
+# Three-way decision framework
 
 ```
-                 向量規模 < 5 萬？QPS 低？有天然過濾維度？
+                 Vector scale < 50k? Low QPS? Natural filter dimensions?
                         │
-          ┌── 是 ───────┴──────── 否 ──┐
+          ┌── Yes ──────┴──────── No ──┐
           ▼                            ▼
-   【留在 MySQL】              需要 ANN，能接受第三方 plugin？
-   app-side 檢索                        │
-   零新增維運面              ┌── 能 ────┴──── 不能 ──┐
-                             ▼                       ▼
-                      【MySQL + MyVector】   【pgvector / 專用向量 DB】
-                       ANN 進 MySQL           規模與延遲是硬需求
+   [Stay on MySQL]            Need ANN, and accept a third-party plugin?
+   app-side retrieval                   │
+   zero extra ops surface    ┌── Yes ───┴─── No ──┐
+                             ▼                    ▼
+                      [MySQL + MyVector]   [pgvector / dedicated vector DB]
+                       ANN inside MySQL     scale and latency are hard requirements
 ```
 
 ---
 
-# 決策因素，不只有 latency
+# Decision factors are not only latency
 
-| 因素 | 偏向 MySQL | 偏向 pgvector / 向量 DB |
+| Factor | Tips toward MySQL | Tips toward pgvector / a vector DB |
 | --- | --- | --- |
-| 向量規模 | < 5 萬 | > 10 萬且持續成長 |
-| 查詢延遲要求 | 秒級可接受 / 離線 | 線上 p95 < 100ms |
-| 過濾維度 | 天然多租戶 / 分類 | 全域跨界檢索 |
-| 團隊現狀 | 只有 MySQL DBA | 本來就有 PG |
-| 資料引力 | 要跟交易資料 JOIN | 知識庫獨立 |
+| Vector scale | < 50k | > 100k and still growing |
+| Query latency | Seconds OK / offline | Online p95 < 100 ms |
+| Filter dimensions | Natural multi-tenant / category | Global, cross-boundary search |
+| Team today | MySQL DBAs only | Already run Postgres |
+| Data gravity | Must JOIN transactional data | Knowledge base is independent |
 
-**沒有正確答案，只有你的情境。**
-
----
-
-# 今天帶走的三件事
-
-1. **一份跑得起來的 demo**
-   `docker compose up` → 綠豆選物 AI 客服（MySQL + pgvector 雙後端）
-2. **一張誠實的對照表**
-   含 benchmark 腳本，回家用自己的資料重跑
-3. **一個決策框架**
-   下次會議室安靜三秒時，你有答案
+**There is no correct answer. There is only your situation.**
 
 ---
 
-# 社群共好
+# Three things to take home
 
-- 本 repo：程式碼 **Apache-2.0**、內容 **CC BY-SA 4.0**、資料集 **CC0**
-- MySQL 的 vector search 還在 roadmap 上——
-  **去官方管道投票、留言、寫 blog，讓 Oracle 知道社群要什麼**
-- MariaDB 11.7 的原生 VECTOR 索引、MyVector——生態在動，故事未完
+1. **A demo that actually runs**
+   `docker compose up` → LitoShop AI support (MySQL + pgvector dual backends)
+2. **An honest comparison table**
+   Including the benchmark script — rerun it at home on your own data
+3. **A decision framework**
+   Next time the room goes quiet for three seconds, you have an answer
+
+---
+
+# Community for the common good
+
+- This repo: code **Apache-2.0**, content **CC BY-SA 4.0**, dataset **CC0**
+- MySQL vector search is still on the roadmap —
+  **Vote, comment, and write on official channels so Oracle hears what the community wants**
+- MariaDB 11.7 native VECTOR indexes, MyVector — the ecosystem is moving; the story is not over
 
 ---
 
 <!-- _class: lead -->
 <!-- _paginate: false -->
 
-# 謝謝！
+# Thank you!
 
 ## Q&A
 
-**repo**：github.com/&lt;your-repo&gt;（QR code）
-**綠豆湯 / litotom**
+**repo**: github.com/&lt;your-repo&gt; (QR code)
+**Green Bean Soup / litotom**
 
-*程式碼 Apache-2.0 ・ 投影片 CC BY-SA 4.0 ・ 資料集 CC0*
+*Code Apache-2.0 · Slides CC BY-SA 4.0 · Dataset CC0*

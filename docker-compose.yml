@@ -1,13 +1,13 @@
-# COSCUP 2026 · 從零打造一個 MySQL-based RAG 系統
-# 服務：
-#   mysql    — MySQL 9.7 社群版（VECTOR 型別主角）
-#   pg       — PostgreSQL 18 + pgvector 0.8（對照組）
-#   ollama   — 本地 embedding（bge-m3）與 LLM（qwen3:4b），profile: ai
-#   myvector — （選配）MyVector plugin 版 MySQL，展示第三條路，profile: myvector
+# COSCUP 2026 · Building a MySQL-based RAG System from Scratch
+# Services:
+#   mysql    — MySQL 9.7 Community (VECTOR type is the star)
+#   pg       — PostgreSQL 18 + pgvector 0.8 (control group)
+#   ollama   — local embedding (bge-m3) and LLM (qwen3:4b), profile: ai
+#   myvector — (optional) MyVector plugin MySQL, the third path, profile: myvector
 #
-# 快速開始：
-#   docker compose up -d                 # 只起兩座資料庫
-#   docker compose --profile ai up -d    # 連同 Ollama 一起起
+# Quick start:
+#   docker compose up -d                 # databases only
+#   docker compose --profile ai up -d    # include Ollama
 
 services:
   mysql:
@@ -34,14 +34,14 @@ services:
   pg:
     image: pgvector/pgvector:pg18-bookworm
     container_name: rag-pg
-    shm_size: 1g          # HNSW 平行建索引需要，預設 64MB 會 DiskFull
+    shm_size: 1g          # needed for parallel HNSW index builds; default 64MB hits DiskFull
     environment:
       POSTGRES_PASSWORD: coscup2026
       POSTGRES_DB: ragdemo
     ports:
       - "5432:5432"
     volumes:
-      # PG 18 image 的 volume 掛載點改為 /var/lib/postgresql（非 …/data）
+      # PG 18 image volume mount is now /var/lib/postgresql (not …/data)
       - pg-data:/var/lib/postgresql
       - ./pgvector/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
@@ -58,12 +58,12 @@ services:
       - "11434:11434"
     volumes:
       - ollama-data:/root/.ollama
-    # 首次啟動後執行：
-    #   docker exec rag-ollama ollama pull bge-m3     # embedding, 1024 維
-    #   docker exec rag-ollama ollama pull qwen3:4b   # 回答用 LLM（繁中可用）
+    # After first start:
+    #   docker exec rag-ollama ollama pull bge-m3     # embedding, 1024 dims
+    #   docker exec rag-ollama ollama pull qwen3:4b   # answering LLM (Chinese-capable)
 
-  # 第三條路（選配）：MyVector = 開源 GPLv2 的 MySQL vector plugin（HNSW ANN）
-  # image 與用法見 https://github.com/askdba/myvector ，示意：
+  # Third path (optional): MyVector = open-source GPLv2 MySQL vector plugin (HNSW ANN)
+  # Image and usage: https://github.com/askdba/myvector — sketch:
   # myvector:
   #   image: ghcr.io/askdba/myvector:mysql9.7
   #   profiles: ["myvector"]
