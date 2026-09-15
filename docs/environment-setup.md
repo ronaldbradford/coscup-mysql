@@ -44,6 +44,7 @@ pip install -r app/requirements.txt
 
 make up          # MySQL 9.7 + pgvector (first image pull ~2 min)
 make up-ai       # Ollama + pull bge-m3 (~1.2 GB) and qwen3:4b (~2.6 GB), about 5–10 min
+                 # On Linux, best-effort dual-iptables fix (no sudo prompt; see §8)
 make dataset     # generate the knowledge base (43 chunks + 173 eval queries)
 make ingest      # real embeddings + write both DBs (bge-m3, about 1–2 min)
 ```
@@ -105,3 +106,25 @@ Add the pre-recorded videos (see the runbook) for three layers: cloud VM → loc
 | MyVector (optional) | v1.26.5 | github.com/askdba/myvector releases |
 
 If MySQL ships Community vector search before August — that is big news. Rewrite slides 10–12 and re-run every benchmark (it also makes the talk better, not worse).
+
+## 8. Troubleshooting: `ollama pull` i/o timeout (dual iptables)
+
+Symptom: the **host** can reach `https://registry.ollama.ai`, but inside a compose container the pull hangs and fails with:
+
+```text
+docker exec rag-ollama ollama pull bge-m3
+Error: dial tcp 104.18.x.x:443: i/o timeout
+```
+
+This is not DNS, not a Cloudflare block, not an HTTP proxy, and not IPv6-first. On Debian/Ubuntu **nested-Docker** (and some cloud VMs) Docker writes FORWARD ACCEPTs with **iptables-nft** for the compose bridge (`br-*` / `coscup-mysql_default`), while leftover **iptables-legacy** still has `FORWARD` policy `DROP` and only allows `docker0`. The kernel evaluates both; the legacy DROP wins, so all HTTPS from compose containers times out.
+
+Docker Desktop on macOS/Windows is not affected.
+
+Fix (idempotent; needs root / sudo):
+
+```bash
+make fix-docker-net
+# or: sudo ./scripts/fix-docker-bridge-forward.sh
+```
+
+Then retry `docker exec rag-ollama ollama pull bge-m3`. `make up-ai` already runs the script with `--best-effort` (Linux + `iptables-legacy` only, never prompts for a password). If you are not root and sudo is not passwordless, run `make fix-docker-net` once by hand.

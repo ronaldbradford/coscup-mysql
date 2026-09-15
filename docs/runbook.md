@@ -74,6 +74,7 @@ EXPLAIN ANALYZE ...  -- Index Scan using idx_faq_embedding
 | Venue Wi-Fi dies | Switch to phone hotspot and SSH again (tmux keeps state) | “While we reconnect, look at the architecture slide” |
 | SSH is completely down | Switch to the laptop compose env | Seamless; same commands |
 | Ollama LLM stuck / too slow | `chatbot.py --no-llm` for retrieval only; play demo1.mp4 for the LLM part | “LLM generation is not today’s point; the retrieval layer is” |
+| `ollama pull` / registry HTTPS `dial tcp …:443: i/o timeout` from `rag-ollama` (host curl works) | Dual iptables: leftover **iptables-legacy** `FORWARD DROP` allows `docker0` only, not the compose `br-*` bridge. Run `make fix-docker-net` then retry the pull. See `docs/environment-setup.md` §8. | “Model pull is blocked by the VM firewall tables — one command, then we continue” |
 | MySQL container dies | `docker compose restart mysql` (~20 s) | Do the pgvector section first, come back |
 | Projector signal issues | Fall back to pre-recorded video + narration | Copies on laptop and phone |
 | Badly behind schedule | Follow the talk-design cut table: drop MyVector live first, then chatbot Q2 | Never cut the decision framework |

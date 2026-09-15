@@ -50,6 +50,7 @@ The benchmark can scale to 100,000 rows. Dual retrieval backends (MySQL 9.7 / pg
 .
 ├── docker-compose.yml   # MySQL 9.7 + pgvector 0.8 (+ Ollama, profile: ai)
 ├── Makefile             # make help lists all commands
+├── scripts/             # Linux nested-Docker helpers (dual-iptables compose-bridge fix)
 ├── mysql/init/          # MySQL schema (VECTOR(1024))
 ├── pgvector/init/       # pgvector schema + HNSW notes
 ├── app/                 # ingest / search_mysql / search_pg / chatbot / bench

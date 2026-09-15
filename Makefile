@@ -39,10 +39,17 @@ check-chat:    ## Verify Docker VM RAM/CPU before launching the LLM
 up:            ## Start MySQL + pgvector
 	docker compose up -d mysql pg
 
+# Dual iptables (nft vs leftover iptables-legacy) can DROP compose-bridge
+# egress on Linux nested-Docker so `ollama pull` times out on :443.
+# --best-effort is a no-op on macOS / Docker Desktop and never prompts sudo.
 up-ai:         ## Start with Ollama and pull models
 	docker compose --profile ai up -d
+	@./scripts/fix-docker-bridge-forward.sh --best-effort
 	docker exec rag-ollama ollama pull bge-m3
 	docker exec rag-ollama ollama pull qwen3:4b
+
+fix-docker-net: ## Linux nested-Docker: ACCEPT compose-bridge in iptables-legacy FORWARD
+	@./scripts/fix-docker-bridge-forward.sh
 
 down:          ## Stop all services (keep data)
 	docker compose --profile ai down
@@ -79,4 +86,4 @@ psql-cli:      ## Open the psql CLI
 	docker exec -it rag-pg psql -U postgres -d ragdemo
 
 help:
-	@grep -E '^[a-zA-Z0-9_-]+:.*##' Makefile | awk -F':.*## ' '{printf "  %-12s %s\n", $$1, $$2}'
+	@grep -E '^[a-zA-Z0-9_-]+:.*##' Makefile | awk -F':.*## ' '{printf "  %-16s %s\n", $$1, $$2}'
